@@ -230,6 +230,8 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
     }
 }
 
+// A Lettuce_cv function
+// Display class label & probabilities
 void draw_detections_new(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes, FILE *fp)
 {
     int i;
@@ -275,11 +277,22 @@ void draw_detections_new(image im, int num, float thresh, box *boxes, float **pr
             
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             
-            //fprintf(fp, "{\"image_id\":%d, \"category_id\":%d, \"bbox\":[%f, %f, %f, %f], \"score\":%f},\n", image_id, coco_ids[j], bx, by, bw, bh, probs[i][j]);
-            fprintf(fp, "%s %d %d %d %d %.0f%%\n", names[class], left, top, right, bot, prob*100);
+            //Edge rejection
+            float box_w = right - left;
+            float box_h = bot - top;
+            printf("b.w = %.1f, b.h = %.1f, b.w/b.h = %.2f\n", box_w, box_h, box_w/box_h);
+
+            if ((box_w/box_h) < 1.28 && (box_w/box_h) > 0.82){
+                sprintf(name_with_prob, "%s: %.0f%%\n", names[class], prob*100);
+                //fprintf(fp, "{\"image_id\":%d, \"category_id\":%d, \"bbox\":[%f, %f, %f, %f], \"score\":%f},\n", image_id, coco_ids[j], bx, by, bw, bh, probs[i][j]);
+                fprintf(fp, "%s %d %d %d %d %.0f%%\n", names[class], left, top, right, bot, prob*100);
+            }
+            else{
+                sprintf(name_with_prob, "%s-rejected: %.0f%%\n", names[class], prob*100);
+            }
             
             if (alphabet) {
-                image label = get_label(alphabet, name_with_prob, (im.h*.03)/10);
+                image label = get_label(alphabet, name_with_prob, (im.h*.01)/10);
                 //image label = get_label(alphabet, names[class], (im.h*.03)/10);
                 draw_label(im, top + width, left, label, rgb);
             }
