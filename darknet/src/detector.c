@@ -483,6 +483,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         else if (nms) do_nms_sort(boxes, probs, l.w*l.h*l.n, l.classes, nms);
         //draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes);
         
+        //Lettuce_cv feature
+        //Output detection results into a txt file; Use draw_detections_new instead of draw_detections
         FILE *fp = fopen("predictions.txt", "w");
         draw_detections_new(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes, fp);
         fclose(fp);
