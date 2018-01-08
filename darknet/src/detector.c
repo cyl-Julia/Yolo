@@ -485,12 +485,13 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         
         //Lettuce_cv feature
         //Output detection results into a txt file; Use draw_detections_new instead of draw_detections
-        FILE *fp = fopen("predictions.txt", "w");
+        //results saved in the same name as the original file, instead of predictions
+        FILE *fp = fopen(replace_str(input, ".jpg", ".txt"), "w");
         draw_detections_new(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes, fp);
         fclose(fp);
         
-        save_image(im, "predictions");
-        show_image(im, "predictions");
+        save_image(im, replace_str(input, ".jpg", ""));
+        show_image(im, replace_str(input, ".jpg", ""));
 
         free_image(im);
         free_image(sized);
@@ -555,5 +556,20 @@ void run_detector(int argc, char **argv)
         char *name_list = option_find_str(options, "names", "data/names.list");
         char **names = get_labels(name_list);
         demo(cfg, weights, thresh, cam_index, filename, names, classes, frame_skip, prefix, hier_thresh);
+    }
+    else if(0==strcmp(argv[2], "tests")) {
+        FILE *fp;
+        fp = fopen(filename , "r");
+        char infile[500];
+        char testfile[500];
+        while(1) {
+            fgets(infile, 500, fp);
+            if( feof(fp) ) {
+                break ;
+            }
+            sprintf(testfile, "%s", replace_str(infile, "\n", ""));
+            test_detector(datacfg, cfg, weights, testfile, thresh, hier_thresh);
+        }
+        fclose(fp);
     }
 }
