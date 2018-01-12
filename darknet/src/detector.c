@@ -505,6 +505,78 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     }
 }
 
+void tests_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh)
+{
+    list *options = read_data_cfg(datacfg);
+    char *name_list = option_find_str(options, "names", "data/names.list");
+    char **names = get_labels(name_list);
+    
+    image **alphabet = load_alphabet();
+    network net = parse_network_cfg(cfgfile);
+    if(weightfile){
+        load_weights(&net, weightfile);
+    }
+    set_batch_network(&net, 1);
+    srand(2222222);
+    clock_t time;
+    char buff[256];
+    char *input = buff;
+    int j;
+    float nms=.4;
+    
+    FILE *fp;
+    fp = fopen(filename , "r");
+    char infile[500];
+    char testfile[500];
+    while(1) {
+        fgets(infile, 500, fp);
+        if( feof(fp) ) {
+            break ;
+        }
+        sprintf(testfile, "%s", replace_str(infile, "\n", ""));
+        
+        strncpy(input, testfile, 256);
+        image im = load_image_color(input,0,0);
+        image sized = resize_image(im, net.w, net.h);
+        layer l = net.layers[net.n-1];
+        
+        box *boxes = calloc(l.w*l.h*l.n, sizeof(box));
+        float **probs = calloc(l.w*l.h*l.n, sizeof(float *));
+        for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = calloc(l.classes + 1, sizeof(float *));
+        
+        float *X = sized.data;
+        time=clock();
+        network_predict(net, X);
+        printf("%s: Predicted in %f seconds.\n", input, sec(clock()-time));
+        get_region_boxes(l, 1, 1, thresh, probs, boxes, 0, 0, hier_thresh);
+        if (l.softmax_tree && nms) do_nms_obj(boxes, probs, l.w*l.h*l.n, l.classes, nms);
+        else if (nms) do_nms_sort(boxes, probs, l.w*l.h*l.n, l.classes, nms);
+        //draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes);
+        
+        //Lettuce_cv feature
+        //Output detection results into a txt file; Use draw_detections_new instead of draw_detections
+        //results saved in the same name as the original file, instead of predictions
+        FILE *fp = fopen(replace_str(input, ".jpg", ".txt"), "w");
+        draw_detections_new(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes, fp);
+        fclose(fp);
+        
+        save_image(im, replace_str(input, ".jpg", ""));
+        show_image(im, replace_str(input, ".jpg", ""));
+        
+        free_image(im);
+        free_image(sized);
+        free(boxes);
+        free_ptrs((void **)probs, l.w*l.h*l.n);
+#ifdef OPENCV
+        cvWaitKey(0);
+        cvDestroyAllWindows();
+#endif
+    }
+    fclose(fp);
+    
+
+}
+
 void run_detector(int argc, char **argv)
 {
     char *prefix = find_char_arg(argc, argv, "-prefix", 0);
@@ -558,18 +630,6 @@ void run_detector(int argc, char **argv)
         demo(cfg, weights, thresh, cam_index, filename, names, classes, frame_skip, prefix, hier_thresh);
     }
     else if(0==strcmp(argv[2], "tests")) {
-        FILE *fp;
-        fp = fopen(filename , "r");
-        char infile[500];
-        char testfile[500];
-        while(1) {
-            fgets(infile, 500, fp);
-            if( feof(fp) ) {
-                break ;
-            }
-            sprintf(testfile, "%s", replace_str(infile, "\n", ""));
-            test_detector(datacfg, cfg, weights, testfile, thresh, hier_thresh);
-        }
-        fclose(fp);
+        tests_detector(datacfg, cfg, weights, filename, thresh, hier_thresh);
     }
 }
